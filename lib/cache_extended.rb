@@ -61,8 +61,6 @@ class ActionController::Base
 
       etag_list = []
 
-      max_time = (Time.now - 1.year).utc
-
       obj.each do |el|
         if el.respond_to? :before_create # is model
           if el[:updated_at]
