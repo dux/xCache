@@ -59,16 +59,19 @@ class ActionController::Base
       return false unless flash.keys.blank?
       return false if @NO_CACHE
 
+      etag_list = []
+
       max_time = (Time.now - 1.year).utc
 
       obj.each do |el|
         if el.respond_to? :before_create # is model
-          ltime = el[:updated_at] if el[:updated_at]
-          ltime = el[:created_at] if ! ltime && el[:created_at]
-          raise "OBJECT [#{el.class.name}] has no updated_at or created_at fields" unless ltime
-          max_time = ltime if ltime > max_time
+          if el[:updated_at]
+            etag_list.push(el[:updated_at].to_i)
+          else
+            etag_list.push(%{#{el.class.name}:#{el.id}})
+          end
         elsif el.kind_of? ActiveSupport::TimeWithZone
-          max_time = el if el > max_time
+          etag_list << el.to_i
         elsif el.class.name == 'NilClass'
           nil
         else
@@ -76,6 +79,6 @@ class ActionController::Base
         end
       end
 
-      current_user && ! @HTTP_PUBLIC ? fresh_when(:etag=>[current_user, obj, request.path], :last_modified=>max_time.utc) : fresh_when(:etag=>[obj, request.path], :last_modified=>max_time.utc, :public=>true)
+      fresh_when(:etag=>etag_list.join('-'), :public=> current_user ? false : true)
     end
 end
